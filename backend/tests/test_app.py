@@ -9,13 +9,14 @@ Must be run from the backend/ directory (StaticFiles uses relative path ../front
 Run: uv run pytest tests/test_app.py -v -m integration
 """
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 # ── Unit smoke tests (mocked AI, no API calls) ────────────────────────────────
+
 
 @pytest.fixture(scope="module")
 def mocked_app_client():
@@ -26,16 +27,28 @@ def mocked_app_client():
     from starlette.testclient import TestClient
 
     for mod in list(sys.modules):
-        if mod in ("app", "rag_system", "ai_generator", "vector_store",
-                   "search_tools", "session_manager", "document_processor", "config"):
+        if mod in (
+            "app",
+            "rag_system",
+            "ai_generator",
+            "vector_store",
+            "search_tools",
+            "session_manager",
+            "document_processor",
+            "config",
+        ):
             del sys.modules[mod]
 
     mock_chroma = MagicMock()
     mock_chroma.get_or_create_collection.return_value = MagicMock()
 
-    with patch("chromadb.PersistentClient", return_value=mock_chroma), \
-         patch("chromadb.utils.embedding_functions.SentenceTransformerEmbeddingFunction"), \
-         patch("anthropic.Anthropic") as mock_cls:
+    with (
+        patch("chromadb.PersistentClient", return_value=mock_chroma),
+        patch(
+            "chromadb.utils.embedding_functions.SentenceTransformerEmbeddingFunction"
+        ),
+        patch("anthropic.Anthropic") as mock_cls,
+    ):
 
         mock_api = MagicMock()
         mock_cls.return_value = mock_api
@@ -45,6 +58,7 @@ def mocked_app_client():
         mock_api.messages.create.return_value = mock_resp
 
         import app as app_module
+
         client = TestClient(app_module.app, raise_server_exceptions=False)
         yield client, mock_api
 
@@ -56,7 +70,9 @@ class TestQueryEndpointUnit:
         """POST /api/query must return HTTP 200 when the backend succeeds."""
         client, _ = mocked_app_client
         resp = client.post("/api/query", json={"query": "What is Python?"})
-        assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
+        assert (
+            resp.status_code == 200
+        ), f"Expected 200, got {resp.status_code}: {resp.text}"
 
     def test_response_has_answer_field(self, mocked_app_client):
         """Response JSON must have a non-empty 'answer' field."""
@@ -113,6 +129,7 @@ class TestQueryEndpointUnit:
 
 # ── Integration test: full real stack ─────────────────────────────────────────
 
+
 @pytest.mark.integration
 class TestQueryEndpointIntegration:
     """
@@ -130,11 +147,20 @@ class TestQueryEndpointIntegration:
         from starlette.testclient import TestClient
 
         for mod in list(sys.modules):
-            if mod in ("app", "rag_system", "ai_generator", "vector_store",
-                       "search_tools", "session_manager", "document_processor", "config"):
+            if mod in (
+                "app",
+                "rag_system",
+                "ai_generator",
+                "vector_store",
+                "search_tools",
+                "session_manager",
+                "document_processor",
+                "config",
+            ):
                 del sys.modules[mod]
 
         import app as app_module
+
         return TestClient(app_module.app, raise_server_exceptions=False)
 
     def test_general_question_returns_200(self, real_app_client):
@@ -174,8 +200,6 @@ class TestQueryEndpointIntegration:
 
     def test_sources_field_is_valid_list(self, real_app_client):
         """Sources must be a list (may be empty for non-content questions)."""
-        resp = real_app_client.post(
-            "/api/query", json={"query": "What is Python?"}
-        )
+        resp = real_app_client.post("/api/query", json={"query": "What is Python?"})
         if resp.status_code == 200:
             assert isinstance(resp.json()["sources"], list)

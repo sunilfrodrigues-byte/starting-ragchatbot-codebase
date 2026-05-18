@@ -9,8 +9,9 @@ content, producing incorrect or empty answers.
 All tests use mock_vector_store from conftest.py. No real ChromaDB or API calls.
 """
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 
 class TestCourseSearchToolHappyPath:
@@ -56,7 +57,9 @@ class TestCourseSearchToolHappyPath:
         result = course_search_tool.execute(query="variables")
         assert "Lesson 1" in result
 
-    def test_execute_passes_query_to_store_search(self, course_search_tool, mock_vector_store):
+    def test_execute_passes_query_to_store_search(
+        self, course_search_tool, mock_vector_store
+    ):
         """
         execute() must forward the query parameter to VectorStore.search().
 
@@ -68,7 +71,9 @@ class TestCourseSearchToolHappyPath:
         call_kwargs = mock_vector_store.search.call_args[1]
         assert call_kwargs["query"] == "function definitions"
 
-    def test_execute_passes_course_name_filter_to_store(self, course_search_tool, mock_vector_store):
+    def test_execute_passes_course_name_filter_to_store(
+        self, course_search_tool, mock_vector_store
+    ):
         """
         When course_name is provided, it must be forwarded to VectorStore.search().
 
@@ -79,7 +84,9 @@ class TestCourseSearchToolHappyPath:
         call_kwargs = mock_vector_store.search.call_args[1]
         assert call_kwargs["course_name"] == "Python Basics"
 
-    def test_execute_passes_lesson_number_filter_to_store(self, course_search_tool, mock_vector_store):
+    def test_execute_passes_lesson_number_filter_to_store(
+        self, course_search_tool, mock_vector_store
+    ):
         """
         When lesson_number is provided, it must be forwarded to VectorStore.search().
 
@@ -112,7 +119,9 @@ class TestCourseSearchToolHappyPath:
         assert "Introduction to Python" in label
         assert "Lesson 1" in label
 
-    def test_execute_source_url_fetched_from_store(self, course_search_tool, mock_vector_store):
+    def test_execute_source_url_fetched_from_store(
+        self, course_search_tool, mock_vector_store
+    ):
         """
         Source URL must come from VectorStore.get_lesson_link().
 
@@ -121,13 +130,18 @@ class TestCourseSearchToolHappyPath:
         course_search_tool.execute(query="variables")
         url = course_search_tool.last_sources[0]["url"]
         assert url == "https://example.com/python/lesson/1"
-        mock_vector_store.get_lesson_link.assert_called_with("Introduction to Python", 1)
+        mock_vector_store.get_lesson_link.assert_called_with(
+            "Introduction to Python", 1
+        )
 
-    def test_execute_no_url_when_no_lesson_number(self, course_search_tool, mock_vector_store):
+    def test_execute_no_url_when_no_lesson_number(
+        self, course_search_tool, mock_vector_store
+    ):
         """
         When metadata has no lesson_number, url must be None (no lesson link to fetch).
         """
         from vector_store import SearchResults
+
         mock_vector_store.search.return_value = SearchResults(
             documents=["General course intro."],
             metadata=[{"course_title": "Introduction to Python"}],
@@ -154,6 +168,7 @@ class TestCourseSearchToolEmptyResults:
         receive no useful signal and potentially fabricate an answer.
         """
         from vector_store import SearchResults
+
         mock_vector_store.search.return_value = SearchResults(
             documents=[], metadata=[], distances=[], error=None
         )
@@ -168,10 +183,13 @@ class TestCourseSearchToolEmptyResults:
         can give an informative "not found in X" answer.
         """
         from vector_store import SearchResults
+
         mock_vector_store.search.return_value = SearchResults(
             documents=[], metadata=[], distances=[], error=None
         )
-        result = course_search_tool.execute(query="quantum physics", course_name="Python Basics")
+        result = course_search_tool.execute(
+            query="quantum physics", course_name="Python Basics"
+        )
         assert "Python Basics" in result
 
     def test_empty_result_with_lesson_filter_mentions_lesson_number(
@@ -181,6 +199,7 @@ class TestCourseSearchToolEmptyResults:
         When empty with lesson filter, the message must mention which lesson.
         """
         from vector_store import SearchResults
+
         mock_vector_store.search.return_value = SearchResults(
             documents=[], metadata=[], distances=[], error=None
         )
@@ -197,6 +216,7 @@ class TestCourseSearchToolEmptyResults:
         empty-result query, showing wrong citations in the UI.
         """
         from vector_store import SearchResults
+
         mock_vector_store.search.return_value = SearchResults(
             documents=[], metadata=[], distances=[], error=None
         )
@@ -218,20 +238,26 @@ class TestCourseSearchToolErrorHandling:
         _handle_tool_execution() in ai_generator.py, causing a 500 error.
         """
         from vector_store import SearchResults
+
         mock_vector_store.search.return_value = SearchResults(
-            documents=[], metadata=[], distances=[],
+            documents=[],
+            metadata=[],
+            distances=[],
             error="Search error: ChromaDB collection not found",
         )
         result = course_search_tool.execute(query="variables")
         assert isinstance(result, str)
         assert "Search error" in result
 
-    def test_execute_never_raises_on_store_error(self, course_search_tool, mock_vector_store):
+    def test_execute_never_raises_on_store_error(
+        self, course_search_tool, mock_vector_store
+    ):
         """
         execute() must NEVER raise — it always returns a string.
         ToolManager.execute_tool() callers depend on this contract.
         """
         from vector_store import SearchResults
+
         mock_vector_store.search.return_value = SearchResults(
             documents=[], metadata=[], distances=[], error="DB failure"
         )
@@ -251,11 +277,16 @@ class TestCourseSearchToolErrorHandling:
         must forward that error string.
         """
         from vector_store import SearchResults
+
         mock_vector_store.search.return_value = SearchResults(
-            documents=[], metadata=[], distances=[],
+            documents=[],
+            metadata=[],
+            distances=[],
             error="No course found matching 'Nonexistent Course'",
         )
-        result = course_search_tool.execute(query="content", course_name="Nonexistent Course")
+        result = course_search_tool.execute(
+            query="content", course_name="Nonexistent Course"
+        )
         assert "No course found" in result
 
 
@@ -272,6 +303,7 @@ class TestCourseSearchToolMultipleResults:
         Failure means: concatenated results make it hard to attribute content.
         """
         from vector_store import SearchResults
+
         mock_vector_store.search.return_value = SearchResults(
             documents=["Variables store data.", "Functions are reusable."],
             metadata=[
@@ -295,6 +327,7 @@ class TestCourseSearchToolMultipleResults:
         giving incomplete source attribution in the UI.
         """
         from vector_store import SearchResults
+
         mock_vector_store.search.return_value = SearchResults(
             documents=["Doc A.", "Doc B."],
             metadata=[

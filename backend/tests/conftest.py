@@ -16,10 +16,11 @@ ENVIRONMENT:
   ANTHROPIC_API_KEY must be set for integration tests. Unit tests mock everything.
 """
 
-import sys
 import os
-import pytest
+import sys
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 # ── sys.path setup ────────────────────────────────────────────────────────────
 # __file__ is backend/tests/conftest.py → parent is backend/tests/ → parent is backend/
@@ -37,6 +38,7 @@ def pytest_configure(config):
 
 
 # ── shared fixtures ───────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mock_vector_store():
@@ -64,6 +66,7 @@ def mock_vector_store():
 def course_search_tool(mock_vector_store):
     """CourseSearchTool wired to mock_vector_store."""
     from search_tools import CourseSearchTool
+
     return CourseSearchTool(mock_vector_store)
 
 
@@ -89,6 +92,7 @@ def make_text_response():
     Usage:
         mock_anthropic_client.messages.create.return_value = make_text_response("Hello!")
     """
+
     def _factory(text: str):
         content_block = MagicMock()
         content_block.type = "text"
@@ -113,6 +117,7 @@ def make_tool_use_response():
         first = make_tool_use_response("search_course_content", {"query": "..."})
         mock_client.messages.create.side_effect = [first, second]
     """
+
     def _factory(tool_name: str, tool_input: dict, tool_id: str = "tool_abc123"):
         text_block = MagicMock()
         text_block.type = "text"

@@ -16,6 +16,7 @@ Fix: change ANTHROPIC_MODEL to "claude-sonnet-4-6" in backend/config.py line 13.
 """
 
 import os
+
 import pytest
 
 
@@ -24,12 +25,14 @@ class TestConfigStructure:
 
     def test_config_singleton_importable(self):
         """Config can be imported without errors."""
-        from config import config, Config
+        from config import Config, config
+
         assert isinstance(config, Config)
 
     def test_anthropic_model_field_is_nonempty_string(self):
         """ANTHROPIC_MODEL must be a non-empty string."""
         from config import Config
+
         cfg = Config()
         assert isinstance(cfg.ANTHROPIC_MODEL, str)
         assert len(cfg.ANTHROPIC_MODEL.strip()) > 0
@@ -37,6 +40,7 @@ class TestConfigStructure:
     def test_anthropic_api_key_field_exists(self):
         """ANTHROPIC_API_KEY attribute must exist."""
         from config import Config
+
         cfg = Config()
         assert hasattr(cfg, "ANTHROPIC_API_KEY")
         assert isinstance(cfg.ANTHROPIC_API_KEY, str)
@@ -55,6 +59,7 @@ class TestConfigStructure:
             "claude-sonnet-4-20250514",
         }
         from config import Config
+
         cfg = Config()
         assert cfg.ANTHROPIC_MODEL not in KNOWN_INVALID_MODELS, (
             f"ANTHROPIC_MODEL is set to '{cfg.ANTHROPIC_MODEL}', which returns HTTP 404 "
@@ -65,18 +70,21 @@ class TestConfigStructure:
     def test_chroma_path_is_configured(self):
         """CHROMA_PATH must be a non-empty string."""
         from config import Config
+
         cfg = Config()
         assert isinstance(cfg.CHROMA_PATH, str) and cfg.CHROMA_PATH.strip()
 
     def test_max_results_is_positive_integer(self):
         """MAX_RESULTS must be a positive integer for ChromaDB n_results."""
         from config import Config
+
         cfg = Config()
         assert isinstance(cfg.MAX_RESULTS, int) and cfg.MAX_RESULTS > 0
 
     def test_chunk_size_exceeds_overlap(self):
         """CHUNK_SIZE must be greater than CHUNK_OVERLAP, else chunking produces empty chunks."""
         from config import Config
+
         cfg = Config()
         assert cfg.CHUNK_SIZE > cfg.CHUNK_OVERLAP > 0
 

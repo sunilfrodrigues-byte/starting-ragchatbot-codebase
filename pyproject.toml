@@ -17,4 +17,14 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "black>=24.0",
+    "isort>=5.13",
 ]
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+
+[tool.isort]
+profile = "black"
+line_length = 88

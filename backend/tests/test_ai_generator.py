@@ -11,8 +11,9 @@ The mock_anthropic_client fixture from conftest.py patches 'anthropic.Anthropic'
 because ai_generator.py does `import anthropic; anthropic.Anthropic(api_key=...)`.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 
 class TestAIGeneratorInitialization:
@@ -26,6 +27,7 @@ class TestAIGeneratorInitialization:
         """
         with patch("anthropic.Anthropic") as mock_class:
             from ai_generator import AIGenerator
+
             AIGenerator(api_key="sk-test-key", model="claude-sonnet-4-6")
             mock_class.assert_called_once_with(api_key="sk-test-key")
 
@@ -33,6 +35,7 @@ class TestAIGeneratorInitialization:
         """The model name must be stored and used in subsequent API calls."""
         with patch("anthropic.Anthropic"):
             from ai_generator import AIGenerator
+
             gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
             assert gen.model == "claude-sonnet-4-6"
 
@@ -40,6 +43,7 @@ class TestAIGeneratorInitialization:
         """base_params must include model, max_tokens, and temperature."""
         with patch("anthropic.Anthropic"):
             from ai_generator import AIGenerator
+
             gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
             assert gen.base_params["model"] == "claude-sonnet-4-6"
             assert "max_tokens" in gen.base_params
@@ -61,19 +65,25 @@ class TestAIGeneratorDirectResponsePath:
         """
         mock_anthropic_client.messages.create.return_value = make_text_response("Paris")
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         result = gen.generate_response("What is the capital of France?")
         assert result == "Paris"
 
-    def test_sends_query_as_user_role_message(self, mock_anthropic_client, make_text_response):
+    def test_sends_query_as_user_role_message(
+        self, mock_anthropic_client, make_text_response
+    ):
         """
         The query must be sent as role='user' in the messages list.
 
         Failure means: the query is lost or misrouted, causing Claude to answer
         a blank question.
         """
-        mock_anthropic_client.messages.create.return_value = make_text_response("Answer")
+        mock_anthropic_client.messages.create.return_value = make_text_response(
+            "Answer"
+        )
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         gen.generate_response("Test question?")
 
@@ -82,14 +92,19 @@ class TestAIGeneratorDirectResponsePath:
         assert messages[0]["role"] == "user"
         assert "Test question?" in messages[0]["content"]
 
-    def test_includes_system_prompt_in_api_call(self, mock_anthropic_client, make_text_response):
+    def test_includes_system_prompt_in_api_call(
+        self, mock_anthropic_client, make_text_response
+    ):
         """
         Every API call must include a non-empty system prompt.
 
         Failure means: Claude has no instruction context, giving off-topic responses.
         """
-        mock_anthropic_client.messages.create.return_value = make_text_response("Answer")
+        mock_anthropic_client.messages.create.return_value = make_text_response(
+            "Answer"
+        )
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         gen.generate_response("Question")
 
@@ -105,38 +120,53 @@ class TestAIGeneratorDirectResponsePath:
 
         Failure means: multi-turn conversations lose context, breaking follow-ups.
         """
-        mock_anthropic_client.messages.create.return_value = make_text_response("Answer")
+        mock_anthropic_client.messages.create.return_value = make_text_response(
+            "Answer"
+        )
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
-        gen.generate_response("Follow-up?", conversation_history="User: Hello\nAssistant: Hi")
+        gen.generate_response(
+            "Follow-up?", conversation_history="User: Hello\nAssistant: Hi"
+        )
 
         call_kwargs = mock_anthropic_client.messages.create.call_args[1]
         assert "Hello" in call_kwargs["system"]
         assert "Hi" in call_kwargs["system"]
 
-    def test_omits_tools_when_none_provided(self, mock_anthropic_client, make_text_response):
+    def test_omits_tools_when_none_provided(
+        self, mock_anthropic_client, make_text_response
+    ):
         """
         When tools=None, the API call must NOT include a 'tools' key.
 
         Failure means: Claude receives an empty tools list and may behave unexpectedly.
         """
-        mock_anthropic_client.messages.create.return_value = make_text_response("Answer")
+        mock_anthropic_client.messages.create.return_value = make_text_response(
+            "Answer"
+        )
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         gen.generate_response("Question", tools=None)
 
         call_kwargs = mock_anthropic_client.messages.create.call_args[1]
         assert "tools" not in call_kwargs
 
-    def test_includes_tools_when_provided(self, mock_anthropic_client, make_text_response):
+    def test_includes_tools_when_provided(
+        self, mock_anthropic_client, make_text_response
+    ):
         """
         When tools list is provided, it must appear in the first API call.
 
         Failure means: Claude doesn't know about available tools and cannot
         perform course content searches.
         """
-        mock_anthropic_client.messages.create.return_value = make_text_response("Answer")
+        mock_anthropic_client.messages.create.return_value = make_text_response(
+            "Answer"
+        )
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         tool_defs = [{"name": "search_course_content", "description": "Search"}]
         gen.generate_response("Question", tools=tool_defs)
@@ -149,8 +179,11 @@ class TestAIGeneratorDirectResponsePath:
         self, mock_anthropic_client, make_text_response
     ):
         """Only one API call should be made when no tool use occurs."""
-        mock_anthropic_client.messages.create.return_value = make_text_response("Answer")
+        mock_anthropic_client.messages.create.return_value = make_text_response(
+            "Answer"
+        )
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         gen.generate_response("Question")
         assert mock_anthropic_client.messages.create.call_count == 1
@@ -179,6 +212,7 @@ class TestAIGeneratorToolUsePath:
         mock_anthropic_client.messages.create.side_effect = [first, second]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         gen.generate_response(
             "What is Python?",
@@ -205,8 +239,11 @@ class TestAIGeneratorToolUsePath:
         mock_anthropic_client.messages.create.side_effect = [first, second]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
-        gen.generate_response("Explain functions", tools=[{}], tool_manager=mock_tool_manager)
+        gen.generate_response(
+            "Explain functions", tools=[{}], tool_manager=mock_tool_manager
+        )
 
         call_args = mock_tool_manager.execute_tool.call_args
         assert call_args[0][0] == "search_course_content"
@@ -232,6 +269,7 @@ class TestAIGeneratorToolUsePath:
         mock_anthropic_client.messages.create.side_effect = [first, second]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         gen.generate_response("Explain OOP", tools=[{}], tool_manager=mock_tool_manager)
 
@@ -261,15 +299,19 @@ class TestAIGeneratorToolUsePath:
         mock_anthropic_client.messages.create.side_effect = [first, second]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
-        gen.generate_response("What are variables?", tools=[{}], tool_manager=mock_tool_manager)
+        gen.generate_response(
+            "What are variables?", tools=[{}], tool_manager=mock_tool_manager
+        )
 
         second_call_kwargs = mock_anthropic_client.messages.create.call_args_list[1][1]
         messages = second_call_kwargs["messages"]
 
         # Find the tool_result user message
         tool_result_msgs = [
-            m for m in messages
+            m
+            for m in messages
             if m["role"] == "user"
             and isinstance(m["content"], list)
             and any(
@@ -277,9 +319,9 @@ class TestAIGeneratorToolUsePath:
                 for item in m["content"]
             )
         ]
-        assert len(tool_result_msgs) == 1, (
-            "Second API call must contain exactly one tool_result user message"
-        )
+        assert (
+            len(tool_result_msgs) == 1
+        ), "Second API call must contain exactly one tool_result user message"
         tool_result = tool_result_msgs[0]["content"][0]
         assert tool_result["tool_use_id"] == "tool_xyz789"
         assert tool_result["content"] == "Variables store data values."
@@ -302,9 +344,12 @@ class TestAIGeneratorToolUsePath:
         mock_anthropic_client.messages.create.side_effect = [first, second]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         gen.generate_response(
-            "Question", tools=[{"name": "search_course_content"}], tool_manager=mock_tool_manager
+            "Question",
+            tools=[{"name": "search_course_content"}],
+            tool_manager=mock_tool_manager,
         )
 
         second_call_kwargs = mock_anthropic_client.messages.create.call_args_list[1][1]
@@ -328,6 +373,7 @@ class TestAIGeneratorToolUsePath:
         mock_anthropic_client.messages.create.side_effect = [first, second]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         result = gen.generate_response(
             "Question", tools=[{}], tool_manager=mock_tool_manager
@@ -349,6 +395,7 @@ class TestAIGeneratorToolUsePath:
         mock_anthropic_client.messages.create.return_value = first
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         try:
             result = gen.generate_response("Question", tools=[{}], tool_manager=None)
@@ -376,9 +423,12 @@ class TestAIGeneratorToolUsePath:
         mock_anthropic_client.messages.create.side_effect = [first, second, third]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         gen.generate_response(
-            "Question", tools=[{"name": "search_course_content"}], tool_manager=mock_tool_manager
+            "Question",
+            tools=[{"name": "search_course_content"}],
+            tool_manager=mock_tool_manager,
         )
 
         third_call_kwargs = mock_anthropic_client.messages.create.call_args_list[2][1]
@@ -403,6 +453,7 @@ class TestAIGeneratorToolUsePath:
         mock_anthropic_client.messages.create.side_effect = [first, second]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         gen.generate_response("Question", tools=[{}], tool_manager=mock_tool_manager)
 
@@ -413,20 +464,26 @@ class TestAIGeneratorToolUsePath:
         assert "assistant" in roles, "Second API call must include an assistant message"
 
         # Assistant message must come before tool_result user message
-        assistant_idx = next(i for i, m in enumerate(messages) if m["role"] == "assistant")
+        assistant_idx = next(
+            i for i, m in enumerate(messages) if m["role"] == "assistant"
+        )
         tool_result_idx = next(
             (
-                i for i, m in enumerate(messages)
+                i
+                for i, m in enumerate(messages)
                 if m["role"] == "user"
                 and isinstance(m.get("content"), list)
-                and any(isinstance(b, dict) and b.get("type") == "tool_result" for b in m["content"])
+                and any(
+                    isinstance(b, dict) and b.get("type") == "tool_result"
+                    for b in m["content"]
+                )
             ),
             None,
         )
         if tool_result_idx is not None:
-            assert assistant_idx < tool_result_idx, (
-                "Assistant message must come before tool_result message in conversation"
-            )
+            assert (
+                assistant_idx < tool_result_idx
+            ), "Assistant message must come before tool_result message in conversation"
 
 
 class TestAIGeneratorSequentialToolUse:
@@ -457,6 +514,7 @@ class TestAIGeneratorSequentialToolUse:
         mock_anthropic_client.messages.create.side_effect = [first, second, third]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         result = gen.generate_response(
             "Find a course on the same topic as lesson 1 of Python",
@@ -486,6 +544,7 @@ class TestAIGeneratorSequentialToolUse:
         mock_anthropic_client.messages.create.side_effect = [first, second, third]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         gen.generate_response("Question", tools=[{}], tool_manager=mock_tool_manager)
 
@@ -505,13 +564,18 @@ class TestAIGeneratorSequentialToolUse:
         mock_tool_manager = MagicMock()
         mock_tool_manager.execute_tool.return_value = "Search results"
 
-        first = make_tool_use_response("search_course_content", {"query": "python basics"})
+        first = make_tool_use_response(
+            "search_course_content", {"query": "python basics"}
+        )
         second = make_text_response("Python is a high-level language.")
         mock_anthropic_client.messages.create.side_effect = [first, second]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
-        result = gen.generate_response("What is Python?", tools=[{}], tool_manager=mock_tool_manager)
+        result = gen.generate_response(
+            "What is Python?", tools=[{}], tool_manager=mock_tool_manager
+        )
 
         assert mock_anthropic_client.messages.create.call_count == 2
         assert result == "Python is a high-level language."
@@ -535,8 +599,11 @@ class TestAIGeneratorSequentialToolUse:
         mock_anthropic_client.messages.create.side_effect = [first, second]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
-        gen.generate_response("Question", tools=tool_defs, tool_manager=mock_tool_manager)
+        gen.generate_response(
+            "Question", tools=tool_defs, tool_manager=mock_tool_manager
+        )
 
         second_call_kwargs = mock_anthropic_client.messages.create.call_args_list[1][1]
         assert "tools" in second_call_kwargs
@@ -556,12 +623,17 @@ class TestAIGeneratorSequentialToolUse:
         mock_tool_manager.execute_tool.side_effect = RuntimeError("Database timeout")
 
         first = make_tool_use_response("search_course_content", {"query": "test"})
-        second = make_text_response("I encountered an error retrieving that information.")
+        second = make_text_response(
+            "I encountered an error retrieving that information."
+        )
         mock_anthropic_client.messages.create.side_effect = [first, second]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
-        result = gen.generate_response("Question", tools=[{}], tool_manager=mock_tool_manager)
+        result = gen.generate_response(
+            "Question", tools=[{}], tool_manager=mock_tool_manager
+        )
 
         assert mock_anthropic_client.messages.create.call_count == 2
         second_call_kwargs = mock_anthropic_client.messages.create.call_args_list[1][1]
@@ -582,16 +654,25 @@ class TestAIGeneratorSequentialToolUse:
         mock_tool_manager = MagicMock()
         mock_tool_manager.execute_tool.return_value = "Search results"
 
-        first = make_tool_use_response("get_course_outline", {"course_name": "X"}, tool_id="t1")
-        second = make_tool_use_response("search_course_content", {"query": "Y"}, tool_id="t2")
+        first = make_tool_use_response(
+            "get_course_outline", {"course_name": "X"}, tool_id="t1"
+        )
+        second = make_tool_use_response(
+            "search_course_content", {"query": "Y"}, tool_id="t2"
+        )
         third = make_text_response("Full answer.")
         mock_anthropic_client.messages.create.side_effect = [first, second, third]
 
         from ai_generator import AIGenerator
-        gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
-        gen.generate_response("Multi-step question", tools=[{}], tool_manager=mock_tool_manager)
 
-        third_call_messages = mock_anthropic_client.messages.create.call_args_list[2][1]["messages"]
+        gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
+        gen.generate_response(
+            "Multi-step question", tools=[{}], tool_manager=mock_tool_manager
+        )
+
+        third_call_messages = mock_anthropic_client.messages.create.call_args_list[2][
+            1
+        ]["messages"]
         assert len(third_call_messages) == 5
         assert third_call_messages[0]["role"] == "user"
         assert third_call_messages[1]["role"] == "assistant"
@@ -627,8 +708,11 @@ class TestAIGeneratorSequentialToolUse:
         mock_anthropic_client.messages.create.side_effect = [first, second]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
-        result = gen.generate_response("Question", tools=tool_defs, tool_manager=mock_tool_manager)
+        result = gen.generate_response(
+            "Question", tools=tool_defs, tool_manager=mock_tool_manager
+        )
 
         assert mock_anthropic_client.messages.create.call_count == 2
         second_call_kwargs = mock_anthropic_client.messages.create.call_args_list[1][1]
@@ -652,12 +736,15 @@ class TestAIGeneratorSequentialToolUse:
             "get_course_outline", {"course_name": "Python OOP"}, tool_id="t1"
         )
         second = make_tool_use_response(
-            "search_course_content", {"query": "OOP concepts", "lesson_number": 3}, tool_id="t2"
+            "search_course_content",
+            {"query": "OOP concepts", "lesson_number": 3},
+            tool_id="t2",
         )
         third = make_text_response("Answer.")
         mock_anthropic_client.messages.create.side_effect = [first, second, third]
 
         from ai_generator import AIGenerator
+
         gen = AIGenerator(api_key="sk-test", model="claude-sonnet-4-6")
         gen.generate_response("Question", tools=[{}], tool_manager=mock_tool_manager)
 

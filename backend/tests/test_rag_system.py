@@ -20,11 +20,12 @@ after fixing config.py, since it directly uses the bad model name.
 
 import os
 import sys
-import pytest
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 # ── Unit test fixture ─────────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def rag_system_with_mocks(mock_anthropic_client):
@@ -38,14 +39,23 @@ def rag_system_with_mocks(mock_anthropic_client):
     mock_chroma = MagicMock()
     mock_chroma.get_or_create_collection.return_value = MagicMock()
 
-    with patch("chromadb.PersistentClient", return_value=mock_chroma), \
-         patch(
-             "chromadb.utils.embedding_functions.SentenceTransformerEmbeddingFunction"
-         ):
+    with (
+        patch("chromadb.PersistentClient", return_value=mock_chroma),
+        patch(
+            "chromadb.utils.embedding_functions.SentenceTransformerEmbeddingFunction"
+        ),
+    ):
         # Import inside the patch context so the patches apply to VectorStore.__init__
         # Clear cached modules so re-import picks up fresh state
-        for mod in ["rag_system", "vector_store", "ai_generator", "search_tools",
-                    "session_manager", "document_processor", "config"]:
+        for mod in [
+            "rag_system",
+            "vector_store",
+            "ai_generator",
+            "search_tools",
+            "session_manager",
+            "document_processor",
+            "config",
+        ]:
             sys.modules.pop(mod, None)
 
         from config import Config
@@ -63,6 +73,7 @@ def rag_system_with_mocks(mock_anthropic_client):
 
 # ── Unit tests ────────────────────────────────────────────────────────────────
 
+
 class TestRAGSystemQueryUnit:
     """Unit tests: RAGSystem.query() logic without real API or DB calls."""
 
@@ -76,7 +87,9 @@ class TestRAGSystemQueryUnit:
         with ValueError (too many / too few values to unpack).
         """
         rag, mock_client = rag_system_with_mocks
-        mock_client.messages.create.return_value = make_text_response("Python is great!")
+        mock_client.messages.create.return_value = make_text_response(
+            "Python is great!"
+        )
 
         result = rag.query("What is Python?")
         assert isinstance(result, tuple)
@@ -95,7 +108,9 @@ class TestRAGSystemQueryUnit:
         Claude's answer.
         """
         rag, mock_client = rag_system_with_mocks
-        mock_client.messages.create.return_value = make_text_response("Variables store data.")
+        mock_client.messages.create.return_value = make_text_response(
+            "Variables store data."
+        )
 
         response, _ = rag.query("What are variables?")
         assert response == "Variables store data."
@@ -161,7 +176,9 @@ class TestRAGSystemQueryUnit:
         Failure means: follow-up questions have no context.
         """
         rag, mock_client = rag_system_with_mocks
-        mock_client.messages.create.return_value = make_text_response("Python is great!")
+        mock_client.messages.create.return_value = make_text_response(
+            "Python is great!"
+        )
 
         session_id = rag.session_manager.create_session()
         rag.query("What is Python?", session_id=session_id)
@@ -233,9 +250,7 @@ class TestRAGSystemQueryUnit:
         assert len(call_history) == 1
         assert call_history[0] is None
 
-    def test_query_propagates_api_errors_to_caller(
-        self, rag_system_with_mocks
-    ):
+    def test_query_propagates_api_errors_to_caller(self, rag_system_with_mocks):
         """
         When AIGenerator raises (e.g., NotFoundError for invalid model name),
         query() must let the exception propagate rather than swallowing it.
@@ -260,6 +275,7 @@ class TestRAGSystemQueryUnit:
 
 # ── Integration tests ─────────────────────────────────────────────────────────
 
+
 @pytest.mark.integration
 class TestRAGSystemQueryLiveServer:
     """
@@ -274,12 +290,20 @@ class TestRAGSystemQueryLiveServer:
         if not api_key:
             pytest.skip("ANTHROPIC_API_KEY not set")
 
-        for mod in ["rag_system", "vector_store", "ai_generator", "search_tools",
-                    "session_manager", "document_processor", "config"]:
+        for mod in [
+            "rag_system",
+            "vector_store",
+            "ai_generator",
+            "search_tools",
+            "session_manager",
+            "document_processor",
+            "config",
+        ]:
             sys.modules.pop(mod, None)
 
         # Use the real config (persistent chroma_db on disk, correct model)
         import os as _os
+
         _os.chdir(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))))
 
         from config import config
@@ -337,8 +361,15 @@ class TestRAGSystemQueryIntegration:
         import chromadb
 
         # Clear cached modules so fresh import picks up the patch
-        for mod in ["rag_system", "vector_store", "ai_generator", "search_tools",
-                    "session_manager", "document_processor", "config"]:
+        for mod in [
+            "rag_system",
+            "vector_store",
+            "ai_generator",
+            "search_tools",
+            "session_manager",
+            "document_processor",
+            "config",
+        ]:
             sys.modules.pop(mod, None)
 
         eph = chromadb.EphemeralClient()
@@ -371,8 +402,15 @@ class TestRAGSystemQueryIntegration:
         import anthropic
         import chromadb
 
-        for mod in ["rag_system", "vector_store", "ai_generator", "search_tools",
-                    "session_manager", "document_processor", "config"]:
+        for mod in [
+            "rag_system",
+            "vector_store",
+            "ai_generator",
+            "search_tools",
+            "session_manager",
+            "document_processor",
+            "config",
+        ]:
             sys.modules.pop(mod, None)
 
         eph = chromadb.EphemeralClient()
@@ -391,9 +429,9 @@ class TestRAGSystemQueryIntegration:
             rag.query("What is Python?")
 
         error_str = str(exc_info.value).lower()
-        assert "404" in error_str or "not_found" in error_str or "model" in error_str, (
-            f"Expected a 404/not_found error for invalid model name, got: {exc_info.value}"
-        )
+        assert (
+            "404" in error_str or "not_found" in error_str or "model" in error_str
+        ), f"Expected a 404/not_found error for invalid model name, got: {exc_info.value}"
 
     def test_rag_query_succeeds_with_correct_model_name(
         self, real_rag_with_correct_model
