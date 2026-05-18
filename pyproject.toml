@@ -28,3 +28,13 @@ target-version = ["py313"]
 [tool.isort]
 profile = "black"
 line_length = 88
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+markers = [
+    "integration: marks tests that make real API/DB calls (requires ANTHROPIC_API_KEY)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore:.*resource_tracker.*:UserWarning",
+]

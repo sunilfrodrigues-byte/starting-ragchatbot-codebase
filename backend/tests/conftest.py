@@ -106,6 +106,69 @@ def make_text_response():
     return _factory
 
 
+class _FakeStaticFiles:
+    """Replacement for StaticFiles that skips directory-existence checks.
+
+    Allows app.py to be imported without a real frontend/ directory on disk.
+    DevStaticFiles in app.py subclasses this, so it must be a proper class.
+    """
+    def __init__(self, *args, **kwargs): pass
+    async def __call__(self, scope, receive, send): pass
+
+
+@pytest.fixture
+def mock_rag_system():
+    """
+    Fully-mocked RAGSystem for HTTP-layer endpoint tests.
+
+    Returns realistic typed values so Pydantic response models validate without
+    needing to configure the chromadb/anthropic call chain underneath.
+    """
+    mock = MagicMock()
+    mock.query.return_value = ("Test answer", [])
+    mock.get_course_analytics.return_value = {
+        "total_courses": 3,
+        "course_titles": ["Python Basics", "Machine Learning", "Data Science"],
+    }
+    mock.session_manager.create_session.return_value = "test-session-abc"
+    mock.session_manager.clear_session.return_value = None
+    return mock
+
+
+@pytest.fixture
+def app_client(mock_rag_system):
+    """
+    TestClient for the FastAPI app with all external dependencies replaced.
+
+    Patches at import time:
+      - chromadb.PersistentClient: no on-disk DB
+      - SentenceTransformerEmbeddingFunction: no ML model load
+      - fastapi.staticfiles.StaticFiles: no frontend directory required
+      - anthropic.Anthropic: no API calls
+
+    After import, app.rag_system is replaced with mock_rag_system so endpoint
+    handlers use it directly — no chromadb/anthropic chain to configure.
+    """
+    from starlette.testclient import TestClient
+
+    for mod in list(sys.modules):
+        if mod in ("app", "rag_system", "ai_generator", "vector_store",
+                   "search_tools", "session_manager", "document_processor", "config"):
+            del sys.modules[mod]
+
+    mock_chroma = MagicMock()
+    mock_chroma.get_or_create_collection.return_value = MagicMock()
+
+    with patch("chromadb.PersistentClient", return_value=mock_chroma), \
+         patch("chromadb.utils.embedding_functions.SentenceTransformerEmbeddingFunction"), \
+         patch("fastapi.staticfiles.StaticFiles", new=_FakeStaticFiles), \
+         patch("anthropic.Anthropic"):
+        import app as app_module
+
+    app_module.rag_system = mock_rag_system
+    yield TestClient(app_module.app, raise_server_exceptions=False)
+
+
 @pytest.fixture
 def make_tool_use_response():
     """
