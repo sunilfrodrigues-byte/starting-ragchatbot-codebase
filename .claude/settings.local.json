@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sunil\\\\projects\\\\starting-ragchatbot-codebase\\\\docs\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object FullName, Name)",
+      "Bash(.venv/Scripts/python.exe -c \"import anthropic; print\\(anthropic.__version__\\)\")",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(.venv/Scripts/python.exe -u -c ' *)",
+      "Bash(uv add *)",
+      "Bash(uv run *)",
+      "Bash(Get-ChildItem *)",
+      "Bash(git add *)"
+    ]
+  }
+}
