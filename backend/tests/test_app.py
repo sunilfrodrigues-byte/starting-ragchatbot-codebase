@@ -35,6 +35,8 @@ def mocked_app_client():
 
     with patch("chromadb.PersistentClient", return_value=mock_chroma), \
          patch("chromadb.utils.embedding_functions.SentenceTransformerEmbeddingFunction"), \
+         patch("fastapi.staticfiles.StaticFiles",
+               new=type("_FS", (), {"__init__": lambda *a, **kw: None})), \
          patch("anthropic.Anthropic") as mock_cls:
 
         mock_api = MagicMock()
@@ -179,3 +181,59 @@ class TestQueryEndpointIntegration:
         )
         if resp.status_code == 200:
             assert isinstance(resp.json()["sources"], list)
+
+
+# ── /api/courses unit tests ───────────────────────────────────────────────────
+
+class TestCoursesEndpointUnit:
+    """Unit tests for GET /api/courses."""
+
+    def test_returns_200(self, app_client):
+        """GET /api/courses must return HTTP 200."""
+        assert app_client.get("/api/courses").status_code == 200
+
+    def test_response_has_total_courses_int(self, app_client):
+        """total_courses field must be an integer."""
+        body = app_client.get("/api/courses").json()
+        assert "total_courses" in body
+        assert isinstance(body["total_courses"], int)
+
+    def test_response_has_course_titles_list(self, app_client):
+        """course_titles field must be a list."""
+        body = app_client.get("/api/courses").json()
+        assert "course_titles" in body
+        assert isinstance(body["course_titles"], list)
+
+    def test_analytics_values_are_returned(self, app_client):
+        """Values from get_course_analytics() must appear in the response."""
+        body = app_client.get("/api/courses").json()
+        assert body["total_courses"] == 3
+        assert "Python Basics" in body["course_titles"]
+
+    def test_analytics_error_returns_500(self, app_client, mock_rag_system):
+        """When get_course_analytics raises, endpoint must return 500 with detail."""
+        mock_rag_system.get_course_analytics.side_effect = Exception("db unavailable")
+        resp = app_client.get("/api/courses")
+        assert resp.status_code == 500
+        assert "detail" in resp.json()
+
+
+# ── /api/session/{session_id} unit tests ─────────────────────────────────────
+
+class TestDeleteSessionEndpointUnit:
+    """Unit tests for DELETE /api/session/{session_id}."""
+
+    def test_returns_200(self, app_client):
+        """DELETE /api/session/{id} must return HTTP 200."""
+        assert app_client.delete("/api/session/abc123").status_code == 200
+
+    def test_returns_cleared_status(self, app_client):
+        """Response body must be {"status": "cleared"}."""
+        assert app_client.delete("/api/session/abc123").json() == {"status": "cleared"}
+
+    def test_delegates_to_session_manager(self, app_client, mock_rag_system):
+        """clear_session must be called with the exact session_id from the URL."""
+        app_client.delete("/api/session/my-session-99")
+        mock_rag_system.session_manager.clear_session.assert_called_once_with(
+            "my-session-99"
+        )
